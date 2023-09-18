@@ -227,18 +227,19 @@ func (g *GGUF) readMetaValue(r io.Reader) (interface{}, error) {
 	}
 }
 
-// Open opens a GGUF file.
-func Open(filename string) (*GGUF, error) {
+// OpenFile opens a GGUF file.
+func OpenFile(filename string) (*GGUF, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return OpenReader(f)
+	return Open(f)
 }
 
-// OpenReader opens a GGUF file from r.
-func OpenReader(r io.Reader) (*GGUF, error) {
+// Open opens a GGUF file from r. r must be positoned at the start
+// of the file.
+func Open(r io.Reader) (*GGUF, error) {
 	var buf [4]byte
 
 	_, err := r.Read(buf[:])
