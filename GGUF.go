@@ -16,14 +16,14 @@ type GGUF struct {
 	// Version is the GGUF version.
 	Version int
 
-	// TensorCount is the number of tensors in the file.
-	TensorCount uint64
-
 	// Metadata is the metadata in the file.
 	Metadata map[string]interface{}
 
 	// Alignment is the alignment of the data in the file.
 	Alignment int
+
+	// Tensors is the list of tensors in the file.
+	Tensors []TensorInfo
 
 	// Helper to read int32 or int64 depending on GGUF version.
 	readUint func(io.Reader) (uint64, error)
@@ -272,7 +272,7 @@ func Open(r io.Reader) (*GGUF, error) {
 		return nil, fmt.Errorf("invalid version: %d", version)
 	}
 
-	g.TensorCount, err = g.readUint(r)
+	tensorCount, err := g.readUint(r)
 	if err != nil {
 		return nil, err
 	}
@@ -295,6 +295,10 @@ func Open(r io.Reader) (*GGUF, error) {
 			return nil, err
 		}
 
+		if u, ok := value.(uint32); ok && name == "general.file_type" {
+			value = GGML(u)
+		}
+
 		g.Metadata[name] = value
 	}
 
@@ -305,6 +309,41 @@ func Open(r io.Reader) (*GGUF, error) {
 
 		default:
 			return nil, fmt.Errorf("invalid alignment type: %T", a)
+		}
+	}
+
+	g.Tensors = make([]TensorInfo, tensorCount)
+
+	for i := uint64(0); i < tensorCount; i++ {
+		g.Tensors[i].Name, err = g.readString(r)
+		if err != nil {
+			return nil, err
+		}
+
+		nDimensions, err := read[uint32](r)
+		if err != nil {
+			return nil, err
+		}
+
+		g.Tensors[i].Dimensions = make([]uint64, nDimensions)
+
+		for j := uint32(0); j < nDimensions; j++ {
+			g.Tensors[i].Dimensions[j], err = g.readUint(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		typ, err := read[uint32](r)
+		if err != nil {
+			return nil, err
+		}
+
+		g.Tensors[i].Type = GGML(typ)
+
+		g.Tensors[i].Offset, err = g.readUint(r)
+		if err != nil {
+			return nil, err
 		}
 	}
 
