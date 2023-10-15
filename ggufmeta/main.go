@@ -40,7 +40,7 @@ func main() {
 
 		switch vv := v.(type) {
 		// Scalars:
-		case uint8, int8, uint16, int16, uint32, int32, float32, bool, string, uint64, int64, float64:
+		case uint8, int8, uint16, int16, uint32, int32, float32, bool, string, uint64, int64, float64, fmt.Stringer:
 			print(k, vv)
 
 		// Arrays:
