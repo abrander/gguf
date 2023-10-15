@@ -296,7 +296,7 @@ func Open(r io.Reader) (*GGUF, error) {
 		}
 
 		if u, ok := value.(uint32); ok && name == "general.file_type" {
-			value = GGML(u)
+			value = Filetype(u)
 		}
 
 		g.Metadata[name] = value
