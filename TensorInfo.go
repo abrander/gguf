@@ -5,7 +5,7 @@ import (
 )
 
 type TensorInfo struct {
-	g *GGUF
+	g *Reader
 
 	// The name of the tensor.
 	Name string
