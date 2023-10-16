@@ -19,7 +19,7 @@ type Reader struct {
 	Version int
 
 	// Metadata is the metadata in the file.
-	Metadata map[string]interface{}
+	Metadata Metadata
 
 	// Tensors is the list of tensors in the file.
 	Tensors []TensorInfo
@@ -367,63 +367,4 @@ func (r *Reader) TensorInfo(name string) (*TensorInfo, error) {
 	}
 
 	return nil, fmt.Errorf("tensor %q not found", name)
-}
-
-func MetaValue[T any](r *Reader, name string) (T, error) {
-	var zero T
-	v, found := r.Metadata[name]
-	if !found {
-		return zero, fmt.Errorf("metadata value %q not found", name)
-	}
-
-	if _, ok := v.(T); !ok {
-		return zero, fmt.Errorf("metadata value %q is not of type %T, type is %T", name, zero, v)
-	}
-
-	return v.(T), nil
-}
-
-func MetaValueNumber[T ~int | ~uint8 | ~int8 | ~uint16 | ~int16 | ~uint32 | ~int32 | ~uint64 | ~int64 | ~float32 | ~float64](r *Reader, name string) (T, error) {
-	v, found := r.Metadata[name]
-	if !found {
-		return 0, fmt.Errorf("metadata value %q not found", name)
-	}
-
-	switch vv := v.(type) {
-	case int:
-		return T(vv), nil
-
-	case uint8:
-		return T(vv), nil
-
-	case int8:
-		return T(vv), nil
-
-	case uint16:
-		return T(vv), nil
-
-	case int16:
-		return T(vv), nil
-
-	case uint32:
-		return T(vv), nil
-
-	case int32:
-		return T(vv), nil
-
-	case uint64:
-		return T(vv), nil
-
-	case int64:
-		return T(vv), nil
-
-	case float32:
-		return T(vv), nil
-
-	case float64:
-		return T(vv), nil
-
-	default:
-		return 0, fmt.Errorf("metadata value %q is not a number, type is %T", name, v)
-	}
 }
