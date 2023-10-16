@@ -13,17 +13,18 @@ import (
 
 // GGUF is a struct that represents a GGUF file.
 type GGUF struct {
+	r io.ReadSeeker
+
 	// Version is the GGUF version.
 	Version int
 
 	// Metadata is the metadata in the file.
 	Metadata map[string]interface{}
 
-	// Alignment is the alignment of the data in the file.
-	Alignment int
-
 	// Tensors is the list of tensors in the file.
 	Tensors []TensorInfo
+
+	tensorOffset int64
 
 	// Helper to read int32 or int64 depending on GGUF version.
 	readUint func(io.Reader) (uint64, error)
@@ -239,7 +240,7 @@ func OpenFile(filename string) (*GGUF, error) {
 
 // Open opens a GGUF file from r. r must be positoned at the start
 // of the file.
-func Open(r io.Reader) (*GGUF, error) {
+func Open(r io.ReadSeeker) (*GGUF, error) {
 	var buf [4]byte
 
 	_, err := r.Read(buf[:])
@@ -257,8 +258,8 @@ func Open(r io.Reader) (*GGUF, error) {
 	}
 
 	g := &GGUF{
-		Version:   int(version),
-		Alignment: 32,
+		r:       r,
+		Version: int(version),
 	}
 
 	switch version {
@@ -302,10 +303,12 @@ func Open(r io.Reader) (*GGUF, error) {
 		g.Metadata[name] = value
 	}
 
+	alignment := int64(32)
+
 	if a, found := g.Metadata["general.alignment"]; found {
 		switch v := a.(type) {
 		case uint32:
-			g.Alignment = int(v)
+			alignment = int64(v)
 
 		default:
 			return nil, fmt.Errorf("invalid alignment type: %T", a)
@@ -315,6 +318,8 @@ func Open(r io.Reader) (*GGUF, error) {
 	g.Tensors = make([]TensorInfo, tensorCount)
 
 	for i := uint64(0); i < tensorCount; i++ {
+		g.Tensors[i].g = g
+
 		g.Tensors[i].Name, err = g.readString(r)
 		if err != nil {
 			return nil, err
@@ -347,5 +352,81 @@ func Open(r io.Reader) (*GGUF, error) {
 		}
 	}
 
+	current, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, err
+	}
+
+	g.tensorOffset = current + alignment - (current % alignment)
+
 	return g, nil
+}
+
+func (g *GGUF) TensorInfo(name string) (*TensorInfo, error) {
+	for i := range g.Tensors {
+		if g.Tensors[i].Name == name {
+			return &g.Tensors[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("tensor %q not found", name)
+}
+
+func MetaValue[T any](g *GGUF, name string) (T, error) {
+	var zero T
+	v, found := g.Metadata[name]
+	if !found {
+		return zero, fmt.Errorf("metadata value %q not found", name)
+	}
+
+	if _, ok := v.(T); !ok {
+		return zero, fmt.Errorf("metadata value %q is not of type %T, type is %T", name, zero, v)
+	}
+
+	return v.(T), nil
+}
+
+func MetaValueNumber[T ~int | ~uint8 | ~int8 | ~uint16 | ~int16 | ~uint32 | ~int32 | ~uint64 | ~int64 | ~float32 | ~float64](g *GGUF, name string) (T, error) {
+	v, found := g.Metadata[name]
+	if !found {
+		return 0, fmt.Errorf("metadata value %q not found", name)
+	}
+
+	switch vv := v.(type) {
+	case int:
+		return T(vv), nil
+
+	case uint8:
+		return T(vv), nil
+
+	case int8:
+		return T(vv), nil
+
+	case uint16:
+		return T(vv), nil
+
+	case int16:
+		return T(vv), nil
+
+	case uint32:
+		return T(vv), nil
+
+	case int32:
+		return T(vv), nil
+
+	case uint64:
+		return T(vv), nil
+
+	case int64:
+		return T(vv), nil
+
+	case float32:
+		return T(vv), nil
+
+	case float64:
+		return T(vv), nil
+
+	default:
+		return 0, fmt.Errorf("metadata value %q is not a number, type is %T", name, v)
+	}
 }
