@@ -368,3 +368,13 @@ func (r *Reader) TensorInfo(name string) (*TensorInfo, error) {
 
 	return nil, fmt.Errorf("tensor %q not found", name)
 }
+
+func (r *Reader) TensorSize() int64 {
+	size := int64(0)
+
+	for _, t := range r.Tensors {
+		size += t.Size()
+	}
+
+	return size
+}

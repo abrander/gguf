@@ -31,3 +31,22 @@ func (t *TensorInfo) Reader() (io.Reader, error) {
 
 	return t.g.r, nil
 }
+
+func (t *TensorInfo) Size() int64 {
+	size := uint64(1)
+
+	s, found := sizes[t.Type]
+	if !found {
+		panic("unknown type: " + t.Type.String())
+	}
+
+	values := uint64(1)
+
+	for _, d := range t.Dimensions {
+		values *= d
+	}
+
+	size += (values / s.valuesinblock) * s.blocksize
+
+	return int64(size)
+}
