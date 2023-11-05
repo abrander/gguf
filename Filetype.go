@@ -25,68 +25,35 @@ const (
 	MostlyQ6_K        Filetype = 18
 )
 
+var ftypeNames = map[Filetype]string{
+	AllF32:            "all F32",
+	MostlyF16:         "mostly F16",
+	MostlyQ4_0:        "mostly Q4_0",
+	MostlyQ4_1:        "mostly Q4_1",
+	MostlyQ4_1SomeF16: "mostly Q4_1, some F16",
+	MostlyQ4_2:        "mostly Q4_2",
+	MostlyQ4_3:        "mostly Q4_3",
+	MostlyQ8_0:        "mostly Q8_0",
+	MostlyQ5_0:        "mostly Q5_0",
+	MostlyQ5_1:        "mostly Q5_1",
+	MostlyQ2_K:        "mostly Q2_K",
+	MostlyQ3_KS:       "mostly Q3_K - Small",
+	MostlyQ3_KM:       "mostly Q3_K - Medium",
+	MostlyQ3_KL:       "mostly Q3_K - Large",
+	MostlyQ4_KS:       "mostly Q4_K - Small",
+	MostlyQ4_KM:       "mostly Q4_K - Medium",
+	MostlyQ5_KS:       "mostly Q5_K - Small",
+	MostlyQ5_KM:       "mostly Q5_K - Medium",
+	MostlyQ6_K:        "mostly Q6_K",
+}
+
 // String return a string representation of the Filetype. All strings are
 // matched to those used in llama.cpp.
 func (f Filetype) String() string {
-	switch f {
-	case AllF32:
-		return "ALL_F32"
-
-	case MostlyF16:
-		return "MOSTLY_F16"
-
-	case MostlyQ4_0:
-		return "MOSTLY_Q4_0"
-
-	case MostlyQ4_1:
-		return "MOSTLY_Q4_1"
-
-	case MostlyQ4_1SomeF16:
-		return "MOSTLY_Q4_1_SOME_F16"
-
-	case MostlyQ4_2:
-		return "MOSTLY_Q4_2"
-
-	case MostlyQ4_3:
-		return "MOSTLY_Q4_3"
-
-	case MostlyQ8_0:
-		return "MOSTLY_Q8_0"
-
-	case MostlyQ5_0:
-		return "MOSTLY_Q5_0"
-
-	case MostlyQ5_1:
-		return "MOSTLY_Q5_1"
-
-	case MostlyQ2_K:
-		return "MOSTLY_Q2_K"
-
-	case MostlyQ3_KS:
-		return "MOSTLY_Q3_KS"
-
-	case MostlyQ3_KM:
-		return "MOSTLY_Q3_KM"
-
-	case MostlyQ3_KL:
-		return "MOSTLY_Q3_KL"
-
-	case MostlyQ4_KS:
-		return "MOSTLY_Q4_KS"
-
-	case MostlyQ4_KM:
-		return "MOSTLY_Q4_KM"
-
-	case MostlyQ5_KS:
-		return "MOSTLY_Q5_KS"
-
-	case MostlyQ5_KM:
-		return "MOSTLY_Q5_KM"
-
-	case MostlyQ6_K:
-		return "MOSTLY_Q6_K"
-
-	default:
-		return "UNKNOWN"
+	name, found := ftypeNames[f]
+	if found {
+		return name
 	}
+
+	return "UNKNOWN"
 }
