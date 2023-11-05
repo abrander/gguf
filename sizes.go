@@ -9,6 +9,8 @@ const qK_K = 256
 
 const kScaleSize = 12
 
+// sizes is a map of GGML to the blocksize and number of values in a
+// block. It's used to calculate the size of a tensor in Size().
 var sizes = map[GGML]struct {
 	blocksize     uint64
 	valuesinblock uint64

@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Type is the type of a GGUF value.
+// Type is the type of a GGUF metadata value.
 type Type uint32
 
 const (

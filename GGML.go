@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// GGML is used to represent the encoding of tensor data.
 type GGML int
 
 const (
@@ -26,6 +27,8 @@ const (
 	GgmlInt32   GGML = 18
 )
 
+// String returns the string representation of the encoding.
+// Implements fmt.Stringer.
 func (g GGML) String() string {
 	switch g {
 	case GgmlFloat32:

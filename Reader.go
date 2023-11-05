@@ -359,6 +359,8 @@ func Open(readseeker io.ReadSeeker) (*Reader, error) {
 	return r, nil
 }
 
+// TensorInfo returns the tensor info for the tensor with the given
+// name. If the tensor is not found, an error is returned.
 func (r *Reader) TensorInfo(name string) (*TensorInfo, error) {
 	for i := range r.Tensors {
 		if r.Tensors[i].Name == name {
@@ -369,6 +371,9 @@ func (r *Reader) TensorInfo(name string) (*TensorInfo, error) {
 	return nil, fmt.Errorf("tensor %q not found", name)
 }
 
+// TensorSize returns the total size of all tensors in the file.
+// This is useful if you would like to show a progress bar showing
+// the progress of reading the file.
 func (r *Reader) TensorSize() int64 {
 	size := int64(0)
 

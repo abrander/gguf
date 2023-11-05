@@ -25,6 +25,8 @@ const (
 	MostlyQ6_K        Filetype = 18
 )
 
+// String return a string representation of the Filetype. All strings are
+// matched to those used in llama.cpp.
 func (f Filetype) String() string {
 	switch f {
 	case AllF32:
