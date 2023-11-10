@@ -11,19 +11,19 @@ type readables interface {
 }
 
 // read reads a value of type T from a binary stream.
-func read[T readables](r io.Reader) (T, error) {
+func read[T readables](r io.Reader, byteorder binary.ByteOrder) (T, error) {
 	var v T
 
-	err := binary.Read(r, binary.LittleEndian, &v)
+	err := binary.Read(r, byteorder, &v)
 
 	return v, err
 }
 
 // readCast reads a value of type T from a binary stream and casts it to type C.
-func readCast[T, C readables](r io.Reader) (C, error) {
+func readCast[T, C readables](r io.Reader, byteorder binary.ByteOrder) (C, error) {
 	var v T
 
-	err := binary.Read(r, binary.LittleEndian, &v)
+	err := binary.Read(r, byteorder, &v)
 
 	return C(v), err
 }

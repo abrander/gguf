@@ -33,6 +33,9 @@ func main() {
 		keys = append(keys, k)
 	}
 
+	fmt.Printf("File byte order: \033[33m%v\033[0m\n", g.ByteOrder.String())
+	fmt.Printf("File Version: \033[33m%d\033[0m\n", g.Version)
+
 	sort.StringSlice(keys).Sort()
 
 	for _, k := range keys {
