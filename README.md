@@ -7,7 +7,7 @@ This is a Go package for reading GGUF files.
 The package is only concerned with reading the metadata and the tensor bytes. It
 does not interpret the data in any way.
 
-GGUF versions 1 and 2 are supported.
+GGUF versions 1, 2 and 3 are supported.
 
 ## Installation
 
