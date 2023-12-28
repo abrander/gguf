@@ -388,7 +388,7 @@ func Open(readseeker io.ReadSeeker) (*Reader, error) {
 		return nil, err
 	}
 
-	r.tensorOffset = current + alignment - (current % alignment)
+	r.tensorOffset = (current + alignment - 1) / alignment * alignment
 
 	return r, nil
 }
