@@ -41,8 +41,6 @@ func (t *TensorInfo) Reader() (io.Reader, error) {
 // useful in comfination with TensorSize() on the Reader if you
 // would like to show a progress bar.
 func (t *TensorInfo) Size() int64 {
-	size := uint64(1)
-
 	s, found := sizes[t.Type]
 	if !found {
 		panic("unknown type: " + t.Type.String())
@@ -54,7 +52,5 @@ func (t *TensorInfo) Size() int64 {
 		values *= d
 	}
 
-	size += (values / s.valuesinblock) * s.blocksize
-
-	return int64(size)
+	return int64((values / s.valuesinblock) * s.blocksize)
 }
