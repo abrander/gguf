@@ -74,8 +74,15 @@ func (t *TensorInfo) Size() int64 {
 	return int64((values / s.valuesinblock) * s.blocksize)
 }
 
+// Path returns the name of the file holding the tensor, if it was opened
+// by OpenFile. In a split model, that's not necessarily the file given
+// to OpenFile.
+func (t *TensorInfo) Path() string {
+	return t.g.path
+}
+
 // DataOffset returns the offset of the tensor data within the GGUF
-// file.
+// file returned by Path().
 func (t *TensorInfo) DataOffset() int64 {
 	return int64(t.g.tensorOffset) + int64(t.Offset)
 }

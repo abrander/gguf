@@ -3,6 +3,7 @@ package gguf
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,10 +30,18 @@ type Reader struct {
 	// Metadata is the metadata in the file.
 	Metadata Metadata
 
-	// Tensors is the list of tensors in the file.
+	// Tensors is the list of tensors in the file, or in all the files
+	// of a split model.
 	Tensors []TensorInfo
 
 	tensorOffset int64
+
+	// path and file are set when the file was opened by OpenFile.
+	path string
+	file *os.File
+
+	// parts are the rest of the files of a split model.
+	parts []*Reader
 
 	// Helper to read int32 or int64 depending on GGUF version.
 	readUint func(io.Reader, binary.ByteOrder) (uint64, error)
@@ -239,18 +248,65 @@ func (r *Reader) readMetaValue() (interface{}, error) {
 	}
 }
 
-// OpenFile opens a GGUF file.
+// OpenFile opens a GGUF file. If it's the first file of a model split in
+// several files, like model-00001-of-00004.gguf, the rest are opened too,
+// and Tensors holds the tensors of all of them. Close closes all the
+// files.
 func OpenFile(filename string) (*Reader, error) {
+	r, err := openFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.openSplit()
+	if err != nil {
+		r.Close()
+
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// openFile opens a single GGUF file.
+func openFile(filename string) (*Reader, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return Open(f)
+	r, err := Open(f)
+	if err != nil {
+		f.Close()
+
+		return nil, fmt.Errorf("%s: %w", filename, err)
+	}
+
+	r.path = filename
+	r.file = f
+
+	return r, nil
+}
+
+// Close closes the files opened by OpenFile. Readers created by Open
+// are left alone, closing them is up to the caller.
+func (r *Reader) Close() error {
+	var errs []error
+
+	for _, part := range append([]*Reader{r}, r.parts...) {
+		if part.file != nil {
+			errs = append(errs, part.file.Close())
+			part.file = nil
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // Open opens a GGUF file from r. r must be positoned at the start
 // of the file.
+// This will not open the rest of the files if it's part of a split
+// model. Use OpenFile instead.
 func Open(readseeker io.ReadSeeker) (*Reader, error) {
 	var buf [4]byte
 
