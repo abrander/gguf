@@ -167,3 +167,44 @@ func (g GGML) Valid() bool {
 		return g < ggmlCount && g >= GgmlF32
 	}
 }
+
+// BlockValues returns the number of values in one block, or 0 if unknown.
+func (g GGML) BlockValues() int {
+	def, found := sizes[g]
+	if !found {
+		return 0
+	}
+
+	return int(def.valuesinblock)
+}
+
+// BlockBytes returns the size of one block in bytes, or 0 if unknown.
+func (g GGML) BlockBytes() int {
+	def, found := sizes[g]
+	if !found {
+		return 0
+	}
+
+	return int(def.blocksize)
+}
+
+// ByteSize returns the size in bytes of n values. It returns an error if
+// the type is unknown or n is not a whole number of blocks.
+func (g GGML) ByteSize(n int64) (int64, error) {
+	if !g.Valid() {
+		return 0, fmt.Errorf("invalid GGML encoding: %v", g)
+	}
+
+	blockValues := g.BlockValues()
+	blockBytes := g.BlockBytes()
+
+	if blockValues == 0 || blockBytes == 0 {
+		return 0, fmt.Errorf("unknown block size for GGML encoding: %v", g)
+	}
+
+	if n%int64(blockValues) != 0 {
+		return 0, fmt.Errorf("n is not a whole number of blocks for GGML encoding: %v", g)
+	}
+
+	return (n / int64(blockValues)) * int64(blockBytes), nil
+}
