@@ -51,7 +51,7 @@ const (
 	GgmlNVFP4      GGML = 40 // NVFP4 (4 blocks, E4M3 scale)
 	GgmlQ1_0       GGML = 41
 	GgmlQ2_0       GGML = 42
-	GgmlCount      GGML = 43
+	ggmlCount      GGML = 43
 
 	// Aliases for backwards-compatibility.
 	GgmlFloat32 = GgmlF32
@@ -148,9 +148,22 @@ func (g GGML) String() string {
 		return "Q1_0"
 	case GgmlQ2_0:
 		return "Q2_0"
-	case GgmlCount:
-		return "Count"
 	default:
 		return fmt.Sprintf("GGML(%d)", g)
+	}
+}
+
+// Valid returns true if the GGML encoding is supported and valid.
+func (g GGML) Valid() bool {
+	switch g {
+	// Support removed from ggml.
+	case GgmlQ4_2, GgmlQ4_3,
+		GgmlQ4_0_4_4, GgmlQ4_0_4_8, GgmlQ4_0_8_8,
+		GgmlIQ4_NL_4_4, GgmlIQ4_NL_4_8, GgmlIQ4_NL_8_8:
+
+		return false
+
+	default:
+		return g < ggmlCount && g >= GgmlF32
 	}
 }
