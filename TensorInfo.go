@@ -38,7 +38,7 @@ func (t *TensorInfo) Reader() (io.Reader, error) {
 }
 
 // Size returns the size of the tensor data in bytes. This can be
-// useful in comfination with TensorSize() on the Reader if you
+// useful in combination with TensorSize() on the Reader if you
 // would like to show a progress bar.
 func (t *TensorInfo) Size() int64 {
 	s, found := sizes[t.Type]
@@ -53,4 +53,10 @@ func (t *TensorInfo) Size() int64 {
 	}
 
 	return int64((values / s.valuesinblock) * s.blocksize)
+}
+
+// DataOffset returns the offset of the tensor data within the GGUF
+// file.
+func (t *TensorInfo) DataOffset() int64 {
+	return int64(t.g.tensorOffset) + int64(t.Offset)
 }
