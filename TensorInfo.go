@@ -22,8 +22,25 @@ type TensorInfo struct {
 // data. The reader is positioned at the start of the tensor data.
 // The caller of this function is responsible for calculating how
 // much data to read.
+// If the tensor data is empty, it will return io.ErrUnexpectedEOF.
 func (t *TensorInfo) Reader() (io.Reader, error) {
-	// FIXME: Use io.NewSectionReader.
+	if readerAt, ok := t.g.r.(io.ReaderAt); ok {
+		offset := t.DataOffset()
+
+		const maxInt64 = int64(^uint64(0) >> 1)
+
+		length := maxInt64 - offset
+		if length < 0 {
+			length = 0
+		}
+
+		if length == 0 {
+			return nil, io.ErrUnexpectedEOF
+		}
+
+		return io.NewSectionReader(readerAt, offset, length), nil
+	}
+
 	_, err := t.g.r.Seek(t.g.tensorOffset, io.SeekStart)
 	if err != nil {
 		return nil, err
