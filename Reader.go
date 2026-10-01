@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 )
 
 // V1: https://github.com/philpax/ggml/blob/2b65fba00c83b9fa041df2ac55ccd8c2f10c5281/docs/gguf.md
@@ -42,6 +43,12 @@ type Reader struct {
 
 	// parts are the rest of the files of a split model.
 	parts []*Reader
+
+	// data is the memory mapping of the file, made by the first call to
+	// Bytes for one of its tensors.
+	mu     sync.Mutex
+	data   []byte
+	closed bool
 
 	// Helper to read int32 or int64 depending on GGUF version.
 	readUint func(io.Reader, binary.ByteOrder) (uint64, error)
@@ -288,12 +295,92 @@ func openFile(filename string) (*Reader, error) {
 	return r, nil
 }
 
-// Close closes the files opened by OpenFile. Readers created by Open
-// are left alone, closing them is up to the caller.
+// Bytes returns the data of tensor t. The file holding it is memory mapped
+// the first time Bytes is called for one of its tensors, so nothing is
+// copied. r must be opened by OpenFile, or by Open with an *os.File.
+func (r *Reader) Bytes(t *TensorInfo) (Data, error) {
+	part := t.g
+	if part != r && !r.hasPart(part) {
+		return nil, fmt.Errorf("tensor %q is not from this reader", t.Name)
+	}
+
+	data, err := part.mapped()
+	if err != nil {
+		return nil, err
+	}
+
+	values := int64(1)
+	for _, d := range t.Dimensions {
+		values *= int64(d)
+	}
+
+	size, err := t.Type.ByteSize(values)
+	if err != nil {
+		return nil, fmt.Errorf("tensor %q: %w", t.Name, err)
+	}
+
+	offset := t.DataOffset()
+
+	if offset+size > int64(len(data)) {
+		return nil, fmt.Errorf("tensor %q ends after the end of the file", t.Name)
+	}
+
+	return Data(data[offset : offset+size : offset+size]), nil
+}
+
+func (r *Reader) hasPart(part *Reader) bool {
+	for _, p := range r.parts {
+		if p == part {
+			return true
+		}
+	}
+
+	return false
+}
+
+// mapped returns the mapping of the file, mapping it if needed.
+func (r *Reader) mapped() ([]byte, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed {
+		return nil, errors.New("reader is closed")
+	}
+
+	if r.data != nil {
+		return r.data, nil
+	}
+
+	f, ok := r.r.(*os.File)
+	if !ok {
+		return nil, errors.New("only files can be mapped")
+	}
+
+	data, err := mapFile(f)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", f.Name(), err)
+	}
+
+	r.data = data
+
+	return data, nil
+}
+
+// Close unmaps the files mapped by Bytes, and closes the files opened by
+// OpenFile. Readers created by Open are left alone, closing them is up to
+// the caller.
 func (r *Reader) Close() error {
 	var errs []error
 
 	for _, part := range append([]*Reader{r}, r.parts...) {
+		part.mu.Lock()
+
+		errs = append(errs, unmapFile(part.data))
+		part.data = nil
+		part.closed = true
+
+		part.mu.Unlock()
+
 		if part.file != nil {
 			errs = append(errs, part.file.Close())
 			part.file = nil
