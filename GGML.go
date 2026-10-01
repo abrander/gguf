@@ -52,6 +52,10 @@ const (
 	GgmlQ1_0       GGML = 41
 	GgmlQ2_0       GGML = 42
 	GgmlCount      GGML = 43
+
+	// Aliases for backwards-compatibility.
+	GgmlFloat32 = GgmlF32
+	GgmlFloat16 = GgmlF16
 )
 
 // String returns the string representation of the encoding.
