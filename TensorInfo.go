@@ -57,10 +57,12 @@ func (t *TensorInfo) Reader() (io.Reader, error) {
 // Size returns the size of the tensor data in bytes. This can be
 // useful in combination with TensorSize() on the Reader if you
 // would like to show a progress bar.
+// 0 will be returned if the tensor type is unknown or if the tensor
+// has no data.
 func (t *TensorInfo) Size() int64 {
 	s, found := sizes[t.Type]
 	if !found {
-		panic("unknown type: " + t.Type.String())
+		return 0
 	}
 
 	values := uint64(1)
