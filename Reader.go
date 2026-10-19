@@ -149,7 +149,7 @@ func (r *Reader) readMetaDataValueScalar(typ Type) (interface{}, error) {
 }
 
 // readMetaDataValueArray reads a GGUF metadata array from r.
-func readMetaDataValueArray[T readables](r *Reader, length uint64) ([]T, error) {
+func readMetaDataValueArray[T Number](r *Reader, length uint64) ([]T, error) {
 	a := make([]T, length)
 
 	for i := uint64(0); i < length; i++ {
@@ -309,9 +309,9 @@ func (r *Reader) Bytes(t *TensorInfo) (Data, error) {
 		return nil, err
 	}
 
-	values := int64(1)
-	for _, d := range t.Dimensions {
-		values *= int64(d)
+	values, err := valueCount(t.Dimensions)
+	if err != nil {
+		return nil, fmt.Errorf("tensor %q: %w", t.Name, err)
 	}
 
 	size, err := t.Type.ByteSize(values)

@@ -1,6 +1,7 @@
 package gguf
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -23,7 +24,12 @@ type TensorInfo struct {
 // The caller of this function is responsible for calculating how
 // much data to read.
 // If the tensor data is empty, it will return io.ErrUnexpectedEOF.
+// It's an error if t isn't from a Reader.
 func (t *TensorInfo) Reader() (io.Reader, error) {
+	if t.g == nil {
+		return nil, fmt.Errorf("tensor %q is not from a Reader", t.Name)
+	}
+
 	if readerAt, ok := t.g.r.(io.ReaderAt); ok {
 		offset := t.DataOffset()
 
