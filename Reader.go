@@ -1,6 +1,7 @@
 package gguf
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -50,6 +51,9 @@ type Reader struct {
 	data   []byte
 	closed bool
 
+	// header is what the header is read from, while it's read.
+	header io.Reader
+
 	// Helper to read int32 or int64 depending on GGUF version.
 	readUint func(io.Reader, binary.ByteOrder) (uint64, error)
 }
@@ -80,14 +84,14 @@ func (r *Reader) readString() (string, error) {
 		}
 	}
 
-	length, err := r.readUint(r.r, r.ByteOrder)
+	length, err := r.readUint(r.header, r.ByteOrder)
 	if err != nil {
 		return "", err
 	}
 
 	data := make([]byte, length)
 
-	_, err = io.ReadFull(r.r, data)
+	_, err = io.ReadFull(r.header, data)
 	if err != nil {
 		return "", err
 	}
@@ -102,28 +106,28 @@ func (r *Reader) readString() (string, error) {
 func (r *Reader) readMetaDataValueScalar(typ Type) (interface{}, error) {
 	switch typ {
 	case Uint8:
-		return read[uint8](r.r, r.ByteOrder)
+		return read[uint8](r.header, r.ByteOrder)
 
 	case Int8:
-		return read[int8](r.r, r.ByteOrder)
+		return read[int8](r.header, r.ByteOrder)
 
 	case Uint16:
-		return read[uint16](r.r, r.ByteOrder)
+		return read[uint16](r.header, r.ByteOrder)
 
 	case Int16:
-		return read[int16](r.r, r.ByteOrder)
+		return read[int16](r.header, r.ByteOrder)
 
 	case Uint32:
-		return read[uint32](r.r, r.ByteOrder)
+		return read[uint32](r.header, r.ByteOrder)
 
 	case Int32:
-		return read[int32](r.r, r.ByteOrder)
+		return read[int32](r.header, r.ByteOrder)
 
 	case Float32:
-		return read[float32](r.r, r.ByteOrder)
+		return read[float32](r.header, r.ByteOrder)
 
 	case Bool:
-		i, err := read[uint8](r.r, r.ByteOrder)
+		i, err := read[uint8](r.header, r.ByteOrder)
 
 		if i != 0 && i != 1 {
 			return nil, fmt.Errorf("invalid bool value: %d", i)
@@ -135,13 +139,13 @@ func (r *Reader) readMetaDataValueScalar(typ Type) (interface{}, error) {
 		return r.readString()
 
 	case Uint64:
-		return read[uint64](r.r, r.ByteOrder)
+		return read[uint64](r.header, r.ByteOrder)
 
 	case Int64:
-		return read[int64](r.r, r.ByteOrder)
+		return read[int64](r.header, r.ByteOrder)
 
 	case Float64:
-		return read[float64](r.r, r.ByteOrder)
+		return read[float64](r.header, r.ByteOrder)
 
 	default:
 		return nil, fmt.Errorf("invalid scalar type: %d", typ)
@@ -153,7 +157,7 @@ func readMetaDataValueArray[T Number](r *Reader, length uint64) ([]T, error) {
 	a := make([]T, length)
 
 	for i := uint64(0); i < length; i++ {
-		v, err := read[T](r.r, r.ByteOrder)
+		v, err := read[T](r.header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -166,19 +170,19 @@ func readMetaDataValueArray[T Number](r *Reader, length uint64) ([]T, error) {
 
 // readMetaValue reads a GGUF metadata value from r.
 func (r *Reader) readMetaValue() (interface{}, error) {
-	typ, err := read[Type](r.r, r.ByteOrder)
+	typ, err := read[Type](r.header, r.ByteOrder)
 	if err != nil {
 		return nil, err
 	}
 
 	switch typ {
 	case Array:
-		aType, err := read[Type](r.r, r.ByteOrder)
+		aType, err := read[Type](r.header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
 
-		length, err := r.readUint(r.r, r.ByteOrder)
+		length, err := r.readUint(r.header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -453,12 +457,18 @@ func Open(readseeker io.ReadSeeker) (*Reader, error) {
 		return nil, fmt.Errorf("invalid version: %d", version)
 	}
 
-	tensorCount, err := r.readUint(readseeker, r.ByteOrder)
+	// The header is many small values, so it's read through a buffer,
+	// rather than a call of readseeker for each.
+	header := bufio.NewReaderSize(readseeker, 1<<20)
+	r.header = header
+	defer func() { r.header = nil }()
+
+	tensorCount, err := r.readUint(header, r.ByteOrder)
 	if err != nil {
 		return nil, err
 	}
 
-	metadataCount, err := r.readUint(readseeker, r.ByteOrder)
+	metadataCount, err := r.readUint(header, r.ByteOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +515,7 @@ func Open(readseeker io.ReadSeeker) (*Reader, error) {
 			return nil, err
 		}
 
-		nDimensions, err := read[uint32](readseeker, r.ByteOrder)
+		nDimensions, err := read[uint32](header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -513,29 +523,32 @@ func Open(readseeker io.ReadSeeker) (*Reader, error) {
 		r.Tensors[i].Dimensions = make([]uint64, nDimensions)
 
 		for j := uint32(0); j < nDimensions; j++ {
-			r.Tensors[i].Dimensions[j], err = r.readUint(readseeker, r.ByteOrder)
+			r.Tensors[i].Dimensions[j], err = r.readUint(header, r.ByteOrder)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		typ, err := read[uint32](readseeker, r.ByteOrder)
+		typ, err := read[uint32](header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
 
 		r.Tensors[i].Type = GGML(typ)
 
-		r.Tensors[i].Offset, err = r.readUint(readseeker, r.ByteOrder)
+		r.Tensors[i].Offset, err = r.readUint(header, r.ByteOrder)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	// readseeker is ahead of the header's end by what's left in the buffer.
 	current, err := readseeker.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return nil, err
 	}
+
+	current -= int64(header.Buffered())
 
 	r.tensorOffset = (current + alignment - 1) / alignment * alignment
 
